@@ -15,13 +15,13 @@ class OrderList:
     def addOrderNode(self, node: OrderNode):
         if self.root == None:
             self.root = node
-            return self
+            return node
         pointer = self.root
         while pointer.next!=None:
             pointer = pointer.next
         pointer.next = node
-        return self
-    
+        return node
+  
     def orderFill(self, opp_order: Order):
         if self.root == None:
             return opp_order
@@ -76,8 +76,39 @@ class PriceNode:
 class PriceTree:
     def __init__(self):
         self.root = None
+    
+    def limitOrderAdd(self, order:LimitOrder):
+        validnode = self.addPriceNode(PriceNode(order.limit_price))
+        validnode.orderlist.addOrderNode(OrderNode(order.quantity))
+        return True
+    def orderFill(self, order: Order):
+        if isinstance(order, LimitOrder):    
+            self.limitOrderAdd(order)
+            return True
+    def getBestBid(self):
+        if self.root == None:
+            return False
 
+        pointer = self.root
 
+        while True:
+            if pointer.right == None:
+                break
+            pointer = pointer.right
+            
+        return pointer
+    def getBestAsk(self):
+        if self.root == None:
+            return False
+
+        pointer = self.root
+
+        while True:
+            if pointer.left == None:
+                break
+            pointer = pointer.left
+            
+        return pointer
     def getValidPriceNode(self, price:float):
         if self.root == None:
             return None
@@ -97,17 +128,6 @@ class PriceTree:
                 pointer = pointer.left
             else:
                 return pointer
-
-    def checkPrice(self, price:float):
-        validnode = self.getValidPriceNode(price)
-
-        if validnode == None:
-            return False, validnode
-
-        if validnode.price == price:
-            return True, validnode
-        return False, validnode 
-
     def addPriceNode(self, node:PriceNode):
         pricenode = self.getValidPriceNode(node.price)
 
@@ -132,41 +152,16 @@ class OrderBook:
 
     def bk_trade(self, order: Order):
         if isinstance(order, LimitOrder):
-            order = self.limitPreFill(order)
-            if order.quantity == 0:
-                return True
             if isinstance(order, LimitLong):
-                pricenode = self.long_limit.addPriceNode(PriceNode(order.limit_price))
-                pricenode.orderlist.addOrderNode(OrderNode(order.quantity))
+                self.long_limit.orderFill(order)
                 return True
             elif isinstance(order, LimitShort):
-                pricenode = self.short_limit.addPriceNode(PriceNode(order.limit_price))
-                pricenode.orderlist.addOrderNode(OrderNode(order.quantity))
+                self.short_limit.orderFill(order)
                 return True
             else:
                 return False
         return False
     
-    def limitPreFill(self, order:LimitOrder):
-        # Hier wird aktuell nur der 1:1 Preis gefüllt, es soll allerdings auch zu besseren preisen ausgeführt werden
-        # OrderFill soll über den PriceTree ausgeführt werden, denn wenn keine Orders mehr existieren soll der knoten direkt entfernt werden können
-
-        if isinstance(order, LimitLong):
-            check, validnode = self.short_limit.checkPrice(order.limit_price)
-            if check:
-                outstanding = validnode.orderlist.orderFill(order)
-                return outstanding
-            return order
-        elif isinstance(order, LimitShort):
-            check, validnode = self.long_limit.checkPrice(order.limit_price)
-            if check:
-                outstanding = validnode.orderlist.orderFill(order)
-            return order
-        else:
-            return False
-
-
-
 class Exchange:
     def __init__(self):
         self.__assets = {}
